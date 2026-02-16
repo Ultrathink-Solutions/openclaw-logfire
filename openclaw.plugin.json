@@ -1,0 +1,139 @@
+{
+  "id": "logfire",
+  "name": "Logfire Observability",
+  "description": "Pydantic Logfire integration for OpenClaw — distributed tracing, GenAI metrics, and trace links",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "token": {
+        "type": "string",
+        "description": "Logfire write token. Falls back to LOGFIRE_TOKEN env var."
+      },
+      "projectUrl": {
+        "type": "string",
+        "description": "Logfire project URL for trace link generation (e.g. https://logfire.pydantic.dev/myorg/myproject)."
+      },
+      "environment": {
+        "type": "string",
+        "description": "Deployment environment (e.g. development, production). Falls back to LOGFIRE_ENVIRONMENT env var."
+      },
+      "region": {
+        "type": "string",
+        "enum": ["us", "eu"],
+        "description": "Logfire region. Defaults to 'us'."
+      },
+      "serviceName": {
+        "type": "string",
+        "description": "OTEL service.name resource attribute. Defaults to 'openclaw-agent'."
+      },
+      "providerName": {
+        "type": "string",
+        "description": "gen_ai.provider.name attribute (e.g. anthropic, openai). Auto-detected if possible."
+      },
+      "captureToolInput": {
+        "type": "boolean",
+        "description": "Record tool call arguments as gen_ai.tool.call.arguments. Defaults to true."
+      },
+      "captureToolOutput": {
+        "type": "boolean",
+        "description": "Record tool call results as gen_ai.tool.call.result. Defaults to false (can be verbose)."
+      },
+      "toolInputMaxLength": {
+        "type": "integer",
+        "description": "Max characters for tool input capture. Defaults to 2048."
+      },
+      "toolOutputMaxLength": {
+        "type": "integer",
+        "description": "Max characters for tool output capture. Defaults to 512."
+      },
+      "captureStackTraces": {
+        "type": "boolean",
+        "description": "Attach full stack traces on tool errors. Defaults to true."
+      },
+      "captureMessageContent": {
+        "type": "boolean",
+        "description": "Record gen_ai.input.messages and gen_ai.output.messages. Defaults to false (privacy-sensitive)."
+      },
+      "captureToolDefinitions": {
+        "type": "boolean",
+        "description": "Record gen_ai.tool.definitions. Defaults to false."
+      },
+      "captureInferenceEvents": {
+        "type": "boolean",
+        "description": "Emit gen_ai.client.inference.operation.details events. Defaults to false."
+      },
+      "redactSecrets": {
+        "type": "boolean",
+        "description": "Strip values matching common secret patterns from tool args. Defaults to true."
+      },
+      "distributedTracing": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Enable W3C traceparent inject/extract. Defaults to false."
+          },
+          "injectIntoCommands": {
+            "type": "boolean",
+            "description": "Inject traceparent into exec/Bash tool HTTP calls. Defaults to true."
+          },
+          "extractFromWebhooks": {
+            "type": "boolean",
+            "description": "Extract traceparent from inbound webhook headers. Defaults to true."
+          },
+          "urlPatterns": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Glob patterns for URLs that receive traceparent injection. Defaults to ['*']."
+          }
+        }
+      },
+      "enableMetrics": {
+        "type": "boolean",
+        "description": "Export GenAI token usage and operation duration metrics. Defaults to true."
+      },
+      "metricsIntervalMs": {
+        "type": "integer",
+        "description": "Metric export interval in milliseconds. Defaults to 60000."
+      },
+      "enableTraceLinks": {
+        "type": "boolean",
+        "description": "Log clickable Logfire trace URLs after each request. Defaults to true."
+      },
+      "logLevel": {
+        "type": "string",
+        "enum": ["debug", "info", "warn", "error"],
+        "description": "Plugin log verbosity. Defaults to 'info'."
+      },
+      "resourceAttributes": {
+        "type": "object",
+        "additionalProperties": { "type": "string" },
+        "description": "Additional OTEL resource attributes (key-value pairs)."
+      },
+      "spanProcessorType": {
+        "type": "string",
+        "enum": ["batch", "simple"],
+        "description": "Span processor type. Use 'simple' for debugging. Defaults to 'batch'."
+      },
+      "batchConfig": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "maxQueueSize": { "type": "integer" },
+          "maxExportBatchSize": { "type": "integer" },
+          "scheduledDelayMs": { "type": "integer" }
+        },
+        "description": "BatchSpanProcessor tuning."
+      }
+    }
+  },
+  "uiHints": {
+    "token": { "label": "Logfire Token", "sensitive": true, "placeholder": "Set LOGFIRE_TOKEN env var or enter here" },
+    "projectUrl": { "label": "Project URL", "placeholder": "https://logfire.pydantic.dev/myorg/myproject" },
+    "region": { "label": "Region", "placeholder": "us" },
+    "environment": { "label": "Environment", "placeholder": "development" }
+  }
+}
