@@ -17,6 +17,22 @@ export interface ToolSpanEntry {
   startTime: number;
 }
 
+export interface LlmSpanEntry {
+  span: Span;
+  ctx: Context;
+  runId: string;
+  provider: string;
+  model: string;
+  startTime: number;
+}
+
+export interface TokenAccumulator {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+}
+
 export interface SessionSpanContext {
   /** Root span: invoke_agent */
   agentSpan: Span;
@@ -24,6 +40,18 @@ export interface SessionSpanContext {
 
   /** Tool call stack (LIFO for correct nesting) */
   toolStack: ToolSpanEntry[];
+
+  /** Pending LLM call spans indexed by runId */
+  llmSpans: Map<string, LlmSpanEntry>;
+
+  /** Accumulated token usage across all LLM calls */
+  tokens: TokenAccumulator;
+
+  /** Last known model (set by llm_input/llm_output hooks) */
+  model?: string;
+
+  /** Last known provider (set by llm_input/llm_output hooks) */
+  provider?: string;
 
   /** Monotonic tool call counter for sequencing */
   toolSequence: number;
@@ -75,6 +103,27 @@ class SpanStore {
     return session.toolStack[session.toolStack.length - 1];
   }
 
+  /** Store a pending LLM call span. */
+  setLlmSpan(sessionKey: string, runId: string, entry: LlmSpanEntry): void {
+    const session = this.sessions.get(sessionKey);
+    if (!session) return;
+    session.llmSpans.set(runId, entry);
+  }
+
+  /** Retrieve a pending LLM call span by runId. */
+  getLlmSpan(sessionKey: string, runId: string): LlmSpanEntry | undefined {
+    return this.sessions.get(sessionKey)?.llmSpans.get(runId);
+  }
+
+  /** Remove and return an LLM call span. */
+  deleteLlmSpan(sessionKey: string, runId: string): LlmSpanEntry | undefined {
+    const session = this.sessions.get(sessionKey);
+    if (!session) return undefined;
+    const entry = session.llmSpans.get(runId);
+    if (entry) session.llmSpans.delete(runId);
+    return entry;
+  }
+
   get size(): number {
     return this.sessions.size;
   }
@@ -84,9 +133,12 @@ class SpanStore {
     const now = Date.now();
     for (const [key, session] of this.sessions) {
       if (now - session.startTime > MAX_AGE_MS) {
-        // End any orphaned tool spans
-        for (const tool of session.toolStack) {
-          tool.span.end();
+        // Close children before parent — reverse order (LIFO)
+        for (let i = session.toolStack.length - 1; i >= 0; i--) {
+          session.toolStack[i].span.end();
+        }
+        for (const llm of [...session.llmSpans.values()].reverse()) {
+          llm.span.end();
         }
         session.agentSpan.end();
         this.sessions.delete(key);

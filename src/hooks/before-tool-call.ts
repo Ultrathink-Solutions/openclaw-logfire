@@ -43,7 +43,7 @@ export function handleBeforeToolCall(
   const session = spanStore.get(sessionKey);
   if (!session) return;
 
-  const tracer = trace.getTracer('@ultrathink-solutions/openclaw-logfire', '0.1.0');
+  const tracer = trace.getTracer('@ultrathink-solutions/openclaw-logfire', '0.3.0');
   const toolName =
     typeof ctx.toolName === 'string' && ctx.toolName.length > 0
       ? ctx.toolName

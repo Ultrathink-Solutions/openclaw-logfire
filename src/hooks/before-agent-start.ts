@@ -32,26 +32,12 @@ export function handleBeforeAgentStart(
   ctx: AgentContext,
   config: LogfirePluginConfig,
 ): void {
-  const sessionKey =
-    typeof ctx.sessionKey === 'string' && ctx.sessionKey.length > 0
-      ? ctx.sessionKey
-      : typeof ctx.sessionId === 'string' && ctx.sessionId.length > 0
-        ? ctx.sessionId
-        : undefined;
+  const sessionKey = ctx.sessionKey ?? ctx.sessionId;
   if (!sessionKey) return;
 
-  const tracer = trace.getTracer('@ultrathink-solutions/openclaw-logfire', '0.1.0');
-  const agentName =
-    typeof ctx.agentId === 'string' && ctx.agentId.length > 0
-      ? ctx.agentId
-      : 'agent';
-  const workspace = extractWorkspaceName(
-    typeof ctx.workspaceDir === 'string' ? ctx.workspaceDir : undefined,
-  );
-  const channel =
-    typeof ctx.messageProvider === 'string' && ctx.messageProvider.length > 0
-      ? ctx.messageProvider
-      : 'unknown';
+  const tracer = trace.getTracer('@ultrathink-solutions/openclaw-logfire', '0.3.0');
+  const agentName = ctx.agentId || 'agent';
+  const workspace = extractWorkspaceName(ctx.workspaceDir);
 
   // Span name per spec: "invoke_agent {gen_ai.agent.name}"
   const spanName = `invoke_agent ${agentName}`;
@@ -73,7 +59,7 @@ export function handleBeforeAgentStart(
         // OpenClaw-specific context
         'openclaw.session_key': sessionKey,
         'openclaw.workspace': workspace,
-        'openclaw.channel': channel,
+        'openclaw.channel': ctx.messageProvider || 'unknown',
       },
     },
     context.active(),
@@ -85,6 +71,8 @@ export function handleBeforeAgentStart(
     agentSpan,
     agentCtx,
     toolStack: [],
+    llmSpans: new Map(),
+    tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     toolSequence: 0,
     hasError: false,
     startTime: Date.now(),

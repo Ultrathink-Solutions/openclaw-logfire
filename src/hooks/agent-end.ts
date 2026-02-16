@@ -61,8 +61,14 @@ export function handleAgentEnd(
   );
 
   // Close any remaining tool spans (shouldn't happen but safety net)
-  for (const tool of session.toolStack) {
-    tool.span.end();
+  // Reverse order: close children before parent (LIFO)
+  for (let i = session.toolStack.length - 1; i >= 0; i--) {
+    session.toolStack[i].span.end();
+  }
+
+  // Close any pending LLM spans (aborted mid-call)
+  for (const llm of [...session.llmSpans.values()].reverse()) {
+    llm.span.end();
   }
 
   // Duration and tool count
@@ -71,6 +77,28 @@ export function handleAgentEnd(
     'openclaw.request.tool_count',
     session.toolSequence,
   );
+
+  // Cumulative token usage from llm_output hooks
+  const { tokens } = session;
+  if (tokens.input > 0 || tokens.output > 0) {
+    session.agentSpan.setAttribute('gen_ai.usage.input_tokens', tokens.input);
+    session.agentSpan.setAttribute('gen_ai.usage.output_tokens', tokens.output);
+    if (tokens.cacheRead > 0) {
+      session.agentSpan.setAttribute('openclaw.usage.cache_read_tokens', tokens.cacheRead);
+    }
+    if (tokens.cacheWrite > 0) {
+      session.agentSpan.setAttribute('openclaw.usage.cache_write_tokens', tokens.cacheWrite);
+    }
+  }
+
+  // Model/provider from LLM hooks (last seen values)
+  if (session.model) {
+    session.agentSpan.setAttribute('gen_ai.request.model', session.model);
+    session.agentSpan.setAttribute('gen_ai.response.model', session.model);
+  }
+  if (session.provider) {
+    session.agentSpan.setAttribute('gen_ai.provider.name', session.provider);
+  }
 
   // Error status
   if (event.error || !event.success || session.hasError) {
@@ -106,10 +134,9 @@ export function handleAgentEnd(
     const metricAttrs = {
       agentName,
       workspace,
-      providerName: config.providerName || 'unknown',
-      // Model names not available in current SDK event payload
-      requestModel: '',
-      responseModel: '',
+      providerName: session.provider || config.providerName || 'unknown',
+      requestModel: session.model || '',
+      responseModel: session.model || '',
       hasError: !!(event.error || !event.success || session.hasError),
       errorType: event.error
         ? 'AgentError'

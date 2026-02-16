@@ -19,12 +19,16 @@ import { handleBeforeToolCall } from './hooks/before-tool-call.js';
 import { handleToolResultPersist } from './hooks/tool-result-persist.js';
 import { handleAgentEnd } from './hooks/agent-end.js';
 import { handleMessageReceived } from './hooks/message-received.js';
+import { handleLlmInput } from './hooks/llm-input.js';
+import { handleLlmOutput } from './hooks/llm-output.js';
 import type { NodeSDK } from '@opentelemetry/sdk-node';
 import type { BeforeAgentStartEvent, AgentContext } from './hooks/before-agent-start.js';
 import type { BeforeToolCallEvent, ToolContext } from './hooks/before-tool-call.js';
 import type { ToolResultPersistEvent, ToolResultPersistContext } from './hooks/tool-result-persist.js';
 import type { AgentEndEvent } from './hooks/agent-end.js';
 import type { MessageReceivedEvent, MessageContext } from './hooks/message-received.js';
+import type { LlmInputEvent, LlmContext } from './hooks/llm-input.js';
+import type { LlmOutputEvent } from './hooks/llm-output.js';
 
 /**
  * Minimal OpenClaw plugin API contract.
@@ -144,6 +148,24 @@ export default function register(api: PluginApi): void {
       );
     } catch (err) {
       api.logger.warn(`Logfire message_received error: ${err}`);
+    }
+  });
+
+  api.on('llm_input', (event, ctx) => {
+    if (!isRecord(event) || !isRecord(ctx)) return;
+    try {
+      handleLlmInput(event as unknown as LlmInputEvent, ctx as unknown as LlmContext, config);
+    } catch (err) {
+      api.logger.warn(`Logfire llm_input error: ${err}`);
+    }
+  });
+
+  api.on('llm_output', (event, ctx) => {
+    if (!isRecord(event) || !isRecord(ctx)) return;
+    try {
+      handleLlmOutput(event as unknown as LlmOutputEvent, ctx as unknown as LlmContext, config);
+    } catch (err) {
+      api.logger.warn(`Logfire llm_output error: ${err}`);
     }
   });
 
