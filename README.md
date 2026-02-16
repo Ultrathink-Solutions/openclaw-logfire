@@ -27,7 +27,7 @@ Add to `openclaw.json`:
 {
   "plugins": {
     "entries": {
-      "logfire": {
+      "openclaw-logfire": {
         "enabled": true,
         "config": {}
       }
@@ -93,7 +93,7 @@ All settings are optional. Sensible defaults work out of the box.
 {
   "plugins": {
     "entries": {
-      "logfire": {
+      "openclaw-logfire": {
         "enabled": true,
         "config": {
           // Logfire project (enables clickable trace links in logs)
@@ -234,7 +234,7 @@ ln -s $(pwd) ~/.openclaw/extensions/openclaw-logfire
 
 export LOGFIRE_TOKEN="your-write-token"
 openclaw restart
-openclaw plugins list  # Should show "logfire" as enabled
+openclaw plugins list  # Should show "openclaw-logfire" as enabled
 ```
 
 ## Built By

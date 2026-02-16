@@ -5,6 +5,21 @@ All notable changes to `@ultrathink-solutions/openclaw-logfire` will be document
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-02-16
+
+### Fixed
+
+- Removed JSON Schema `$schema` declaration (draft 2020-12) from `openclaw.plugin.json` — OpenClaw's bundled Ajv only supports draft-07 and crashes on any CLI command when an incompatible `$schema` is present
+- Changed plugin manifest `id` from `"logfire"` to `"openclaw-logfire"` — OpenClaw resolves plugin config by manifest `id`, and the mismatch caused config entries to silently not pass through to the plugin
+
+### Changed
+
+- **Breaking:** Config entry key must now be `"openclaw-logfire"` (was `"logfire"`) to match the corrected manifest `id`
+
+### Added
+
+- `SKILL.md` for ClawHub registry listing
+
 ## [0.1.0] - 2026-02-15
 
 ### Added
@@ -25,4 +40,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Batch and simple span processor modes
 - Zero-config quickstart (just set `LOGFIRE_TOKEN`)
 
+[0.1.1]: https://github.com/Ultrathink-Solutions/openclaw-logfire/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Ultrathink-Solutions/openclaw-logfire/releases/tag/v0.1.0
