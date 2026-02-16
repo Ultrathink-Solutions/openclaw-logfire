@@ -1,13 +1,18 @@
-# @ultrathink/openclaw-logfire
+# @ultrathink-solutions/openclaw-logfire
+
+[![npm version](https://img.shields.io/npm/v/@ultrathink-solutions/openclaw-logfire)](https://www.npmjs.com/package/@ultrathink-solutions/openclaw-logfire)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Pydantic [Logfire](https://pydantic.dev/logfire) observability plugin for [OpenClaw](https://openclaw.ai).
 
 Full agent lifecycle tracing aligned with [OTEL GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) — tool calls, token metrics, error stack traces, and optional distributed tracing across services.
 
+> **Real-world context:** We built this plugin as part of deploying OpenClaw into production on the [Ultrathink Axon platform](https://ultrathinksolutions.com/the-signal/openclaw-to-production/). The architecture and design decisions are detailed in that post.
+
 ## Quickstart
 
 ```bash
-npm install @ultrathink/openclaw-logfire
+npm install @ultrathink-solutions/openclaw-logfire
 ```
 
 Set your Logfire write token:
@@ -231,6 +236,13 @@ export LOGFIRE_TOKEN="your-write-token"
 openclaw restart
 openclaw plugins list  # Should show "logfire" as enabled
 ```
+
+## Built By
+
+[Ultrathink Solutions](https://ultrathinksolutions.com) — production-grade AI agent infrastructure. We help teams close the gap between AI demos and production systems.
+
+- [We Put OpenClaw Into Production in a Weekend](https://ultrathinksolutions.com/the-signal/openclaw-to-production/) — the architecture behind this plugin
+- [The AI Execution Gap](https://ultrathinksolutions.com/the-signal/ai-execution-gap/) — why most AI projects stall between POC and production
 
 ## License
 
