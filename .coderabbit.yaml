@@ -1,0 +1,270 @@
+# CodeRabbit Configuration for @ultrathink/openclaw-logfire
+# Docs: https://docs.coderabbit.ai/reference/configuration
+#
+# Technology Stack:
+# - Runtime: Node.js 20+, TypeScript 5.7+, ESM
+# - OpenTelemetry: @opentelemetry/api, sdk-node, sdk-trace-base, sdk-metrics
+# - Semantic Conventions: OTEL GenAI (gen_ai.*)
+# - Target: Pydantic Logfire OTLP HTTP endpoints
+# - Testing: Vitest
+# - Plugin Host: OpenClaw >= 2026.2.1
+
+language: en-US
+
+# ==============================================================================
+# REVIEW SETTINGS
+# ==============================================================================
+reviews:
+  # Review profile: "assertive" for thorough reviews
+  profile: assertive
+
+  # Enable blocking behavior via CHANGES_REQUESTED
+  request_changes_workflow: true
+
+  # Report commit status to GitHub (pending/success/failure)
+  commit_status: true
+
+  # High-level summary in PR description
+  high_level_summary: true
+  high_level_summary_placeholder: "@coderabbitai summary"
+
+  # Suggest labels and reviewers
+  suggested_labels: true
+  suggested_reviewers: false
+
+  # Poem in review (disabled for professional reviews)
+  poem: false
+
+  # Auto-review settings
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    ignore_title_keywords:
+      - "WIP"
+      - "DO NOT MERGE"
+      - "DRAFT"
+
+  # ---------------------------------------------------------------------------
+  # PATH FILTERS - Files to ignore during review
+  # ---------------------------------------------------------------------------
+  path_filters:
+    # Lock files
+    - "!**/package-lock.json"
+
+    # Dependencies
+    - "!**/node_modules/**"
+
+    # Build output
+    - "!**/dist/**"
+    - "!**/*.d.ts"
+    - "!**/*.js.map"
+
+    # Coverage reports
+    - "!**/coverage/**"
+
+    # IDE and tool configs
+    - "!**/.idea/**"
+    - "!**/.vscode/**"
+
+  # ---------------------------------------------------------------------------
+  # PATH INSTRUCTIONS - Custom review guidelines per file pattern
+  # ---------------------------------------------------------------------------
+  path_instructions:
+    # =========================================================================
+    # OTEL PLUGIN SOURCE FILES
+    # =========================================================================
+    - path: "src/**/*.ts"
+      instructions: |
+        OTEL PLUGIN REVIEW RULES:
+
+        1. TYPE SAFETY - CRITICAL:
+           - Avoid `any` type — require justification comment if used
+           - Use `unknown` for untyped external data (OpenClaw hook events)
+           - All public functions must have explicit return types
+           - Plugin API types should be minimal — type only what we use
+
+        2. OTEL SEMANTIC CONVENTIONS - CRITICAL:
+           - Span names MUST follow GenAI conventions: `invoke_agent`, `execute_tool`
+           - Attributes MUST use `gen_ai.*` namespace per OTEL GenAI semconv
+           - Required attributes: `gen_ai.operation.name`, `gen_ai.agent.name`
+           - Token metrics: `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`
+           - Tool attributes: `gen_ai.tool.name`, `gen_ai.tool.call.id`
+           - Error attributes: `error.type`, `exception.message`, `exception.stacktrace`
+           - Custom attributes use `openclaw.*` namespace
+           - Verify attribute names against: https://opentelemetry.io/docs/specs/semconv/gen-ai/
+
+        3. SPAN LIFECYCLE - CRITICAL:
+           - Every span opened MUST be closed (check finally blocks)
+           - Spans must be closed in LIFO order (stack discipline)
+           - Error spans must call `span.setStatus(SpanStatusCode.ERROR)`
+           - Exception events must be recorded with `span.recordException()`
+           - Span context must propagate correctly via span store
+
+        4. LOGFIRE COMPATIBILITY:
+           - OTLP HTTP export to `logfire-api.pydantic.dev` (US) or `logfire-api-eu.pydantic.dev` (EU)
+           - Headers must include `Authorization: Bearer ${token}`
+           - Service name and environment must be set on resource
+           - Trace links use Logfire URL format with project URL + trace/span IDs
+
+        5. ERROR HANDLING:
+           - Plugin errors MUST NOT crash the OpenClaw host process
+           - All hook handlers must be wrapped in try/catch
+           - Log errors via `api.logger.warn()`, never throw
+           - SDK initialization failures should disable the plugin gracefully
+
+        6. CONTEXT PROPAGATION:
+           - SpanStore must handle concurrent sessions correctly
+           - W3C traceparent injection must only target allowed URL patterns
+           - Always validate inputs from OpenClaw hooks (untrusted external data)
+
+        7. CODE STYLE:
+           - Use async/await consistently
+           - Prefer const over let
+           - No side effects in module scope except type definitions
+
+    # =========================================================================
+    # HOOK HANDLERS
+    # =========================================================================
+    - path: "src/hooks/**/*.ts"
+      instructions: |
+        HOOK HANDLER REVIEW RULES:
+
+        Hook handlers are the primary integration surface with OpenClaw.
+        They receive untrusted event data and must be defensive.
+
+        1. INPUT VALIDATION:
+           - Validate event shape before accessing properties
+           - Use optional chaining for nested event data
+           - Never trust event data types — OpenClaw may change payload shapes
+
+        2. SPAN MANAGEMENT:
+           - before_agent_start: Creates root span, stores in SpanStore
+           - before_tool_call: Creates child span under agent span
+           - tool_result_persist: Closes tool span, records errors
+           - agent_end: Closes agent span, emits metrics
+           - message_received: Enriches with channel attributes (no span creation)
+
+        3. ERROR ISOLATION:
+           - Each hook handler must be independently wrapped in try/catch
+           - A failure in one hook must not affect other hooks
+           - Never let exceptions propagate to OpenClaw
+
+        4. PRIVACY:
+           - Respect captureToolInput/captureToolOutput/captureMessageContent flags
+           - Redact secrets when redactSecrets is enabled
+           - Truncate long values to toolInputMaxLength
+
+    # =========================================================================
+    # CONTEXT AND PROPAGATION
+    # =========================================================================
+    - path: "src/context/**/*.ts"
+      instructions: |
+        CONTEXT MANAGEMENT REVIEW RULES:
+
+        1. SPAN STORE:
+           - Must handle concurrent sessions safely (Map-based, not global state)
+           - LIFO stack for tool spans within a session
+           - TTL cleanup to prevent memory leaks on abandoned sessions
+           - No external dependencies — pure in-memory
+
+        2. W3C TRACE CONTEXT:
+           - traceparent format: `00-{traceId}-{spanId}-{flags}`
+           - Only inject into URLs matching configured patterns
+           - Use picomatch for glob pattern matching
+           - Never inject headers into untrusted/external URLs by default
+
+    # =========================================================================
+    # METRICS
+    # =========================================================================
+    - path: "src/metrics/**/*.ts"
+      instructions: |
+        METRICS REVIEW RULES:
+
+        1. OTEL METRICS:
+           - Use OTEL Metrics API (Histogram, Counter)
+           - Metric names: `gen_ai.client.token.usage`, `gen_ai.client.operation.duration`
+           - Include proper attributes for metric dimensions
+           - Register meters via MeterProvider, not global
+
+        2. HISTOGRAM BOUNDARIES:
+           - Token usage: appropriate bucket boundaries for LLM token counts
+           - Duration: appropriate bucket boundaries for agent operation latency
+
+    # =========================================================================
+    # TEST FILES
+    # =========================================================================
+    - path: "src/**/*.test.ts"
+      instructions: |
+        TEST REVIEW RULES:
+
+        1. TEST SCOPE - CRITICAL:
+           - Test OUR business logic, not OpenTelemetry internals
+           - DO NOT test that OTEL SDK creates spans correctly
+           - DO test config resolution, secret redaction, span store behavior
+           - DO test utility functions (truncation, error extraction)
+
+        2. TEST STRUCTURE:
+           - Group tests logically with describe()
+           - Test happy path and error paths
+           - Test edge cases (empty inputs, missing fields, circular refs)
+           - Use descriptive test names
+
+        3. MOCKING:
+           - Mock OTEL API (tracer, meter) when testing hook handlers
+           - Mock OpenClaw plugin API when testing registration
+           - Don't mock internal utilities — test them directly
+
+    # =========================================================================
+    # CONFIGURATION FILES
+    # =========================================================================
+    - path: "*.json"
+      instructions: |
+        CONFIGURATION REVIEW RULES:
+
+        - package.json: Verify version bumps are appropriate
+        - tsconfig.json: Maintain strict mode settings
+        - Verify no sensitive data in config files
+        - OpenTelemetry dependency versions should be compatible
+
+  # ---------------------------------------------------------------------------
+  # TOOLS - Static analysis integrations
+  # ---------------------------------------------------------------------------
+  tools:
+    # TypeScript/JavaScript linting
+    eslint:
+      enabled: true
+
+    # Security - secret scanning
+    gitleaks:
+      enabled: true
+
+    # YAML validation
+    yamllint:
+      enabled: true
+
+# ==============================================================================
+# CHAT SETTINGS
+# ==============================================================================
+chat:
+  auto_reply: true
+
+# ==============================================================================
+# KNOWLEDGE BASE
+# ==============================================================================
+knowledge_base:
+  # Learn from feedback across all repos in org
+  learnings:
+    scope: global
+
+  # Issue integration scope
+  issues:
+    scope: auto
+
+  # Linear integration - team key for ULT-### detection
+  linear:
+    team_keys:
+      - "ULT"
+
+  # Auto-detect coding guidelines from CLAUDE.md, etc.
+  code_guidelines:
+    enabled: true
