@@ -12,26 +12,46 @@ import { spanStore, type SessionSpanContext } from '../context/span-store.js';
 import { extractWorkspaceName } from '../util.js';
 import type { LogfirePluginConfig } from '../config.js';
 
-/** Minimal contract for the hook event — we only access what we need. */
+/** OpenClaw before_agent_start event payload. */
 export interface BeforeAgentStartEvent {
-  context: {
-    sessionKey: string;
-    agentId?: string;
-    workspaceDir?: string;
-    commandSource?: string;
-    senderId?: string;
-    model?: string;
-    messages?: unknown[];
-  };
+  prompt: string;
+  messages?: unknown[];
+}
+
+/** OpenClaw agent lifecycle hook context (2nd argument). */
+export interface AgentContext {
+  agentId?: string;
+  sessionKey?: string;
+  sessionId?: string;
+  workspaceDir?: string;
+  messageProvider?: string;
 }
 
 export function handleBeforeAgentStart(
-  event: BeforeAgentStartEvent,
+  _event: BeforeAgentStartEvent,
+  ctx: AgentContext,
   config: LogfirePluginConfig,
 ): void {
+  const sessionKey =
+    typeof ctx.sessionKey === 'string' && ctx.sessionKey.length > 0
+      ? ctx.sessionKey
+      : typeof ctx.sessionId === 'string' && ctx.sessionId.length > 0
+        ? ctx.sessionId
+        : undefined;
+  if (!sessionKey) return;
+
   const tracer = trace.getTracer('@ultrathink-solutions/openclaw-logfire', '0.1.0');
-  const agentName = event.context.agentId || 'agent';
-  const workspace = extractWorkspaceName(event.context.workspaceDir);
+  const agentName =
+    typeof ctx.agentId === 'string' && ctx.agentId.length > 0
+      ? ctx.agentId
+      : 'agent';
+  const workspace = extractWorkspaceName(
+    typeof ctx.workspaceDir === 'string' ? ctx.workspaceDir : undefined,
+  );
+  const channel =
+    typeof ctx.messageProvider === 'string' && ctx.messageProvider.length > 0
+      ? ctx.messageProvider
+      : 'unknown';
 
   // Span name per spec: "invoke_agent {gen_ai.agent.name}"
   const spanName = `invoke_agent ${agentName}`;
@@ -47,19 +67,13 @@ export function handleBeforeAgentStart(
 
         // Agent attributes
         'gen_ai.agent.name': agentName,
-        'gen_ai.agent.id': event.context.agentId || '',
-        'gen_ai.conversation.id': event.context.sessionKey,
-
-        // Model (if known at start)
-        ...(event.context.model
-          ? { 'gen_ai.request.model': event.context.model }
-          : {}),
+        'gen_ai.agent.id': agentName,
+        'gen_ai.conversation.id': sessionKey,
 
         // OpenClaw-specific context
-        'openclaw.session_key': event.context.sessionKey,
+        'openclaw.session_key': sessionKey,
         'openclaw.workspace': workspace,
-        'openclaw.channel': event.context.commandSource || 'unknown',
-        'openclaw.sender_id': event.context.senderId || '',
+        'openclaw.channel': channel,
       },
     },
     context.active(),
@@ -76,5 +90,5 @@ export function handleBeforeAgentStart(
     startTime: Date.now(),
   };
 
-  spanStore.set(event.context.sessionKey, session);
+  spanStore.set(sessionKey, session);
 }

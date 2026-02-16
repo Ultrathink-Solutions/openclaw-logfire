@@ -9,26 +9,17 @@
 import { SpanStatusCode } from '@opentelemetry/api';
 import { spanStore } from '../context/span-store.js';
 import { buildLogfireTraceUrl } from '../trace-link.js';
-import { recordTokenUsage, recordOperationDuration } from '../metrics/genai-metrics.js';
-import { extractWorkspaceName } from '../util.js';
+import { recordOperationDuration } from '../metrics/genai-metrics.js';
+import { extractWorkspaceName, extractErrorDetails } from '../util.js';
 import type { LogfirePluginConfig } from '../config.js';
+import type { AgentContext } from './before-agent-start.js';
 
+/** OpenClaw agent_end event payload. */
 export interface AgentEndEvent {
-  context: {
-    sessionKey: string;
-    agentId?: string;
-    workspaceDir?: string;
-    model?: string;
-  };
-  /** Token usage reported by OpenClaw (structure may vary). */
-  usage?: {
-    inputTokens?: number;
-    outputTokens?: number;
-    totalTokens?: number;
-    model?: string;
-    cost?: number;
-  };
-  error?: unknown;
+  messages: unknown[];
+  success: boolean;
+  error?: string;
+  durationMs?: number;
 }
 
 /** Logger interface — matches OpenClaw plugin api.logger shape. */
@@ -41,40 +32,37 @@ export interface Logger {
 
 export function handleAgentEnd(
   event: AgentEndEvent,
+  ctx: AgentContext,
   config: LogfirePluginConfig,
   logger: Logger,
 ): void {
-  const session = spanStore.get(event.context.sessionKey);
+  const sessionKey =
+    typeof ctx.sessionKey === 'string' && ctx.sessionKey.length > 0
+      ? ctx.sessionKey
+      : typeof ctx.sessionId === 'string' && ctx.sessionId.length > 0
+        ? ctx.sessionId
+        : undefined;
+  if (!sessionKey) return;
+
+  const session = spanStore.get(sessionKey);
   if (!session) return;
 
-  const durationMs = Date.now() - session.startTime;
+  const durationMs =
+    typeof event.durationMs === 'number' && Number.isFinite(event.durationMs)
+      ? event.durationMs
+      : Date.now() - session.startTime;
   const durationS = durationMs / 1000;
-  const agentName = event.context.agentId || 'agent';
-  const workspace = extractWorkspaceName(event.context.workspaceDir);
+  const agentName =
+    typeof ctx.agentId === 'string' && ctx.agentId.length > 0
+      ? ctx.agentId
+      : 'agent';
+  const workspace = extractWorkspaceName(
+    typeof ctx.workspaceDir === 'string' ? ctx.workspaceDir : undefined,
+  );
 
   // Close any remaining tool spans (shouldn't happen but safety net)
   for (const tool of session.toolStack) {
     tool.span.end();
-  }
-
-  // Token usage attributes
-  const usage = event.usage;
-  if (usage) {
-    if (usage.inputTokens !== undefined) {
-      session.agentSpan.setAttribute(
-        'gen_ai.usage.input_tokens',
-        usage.inputTokens,
-      );
-    }
-    if (usage.outputTokens !== undefined) {
-      session.agentSpan.setAttribute(
-        'gen_ai.usage.output_tokens',
-        usage.outputTokens,
-      );
-    }
-    if (usage.model) {
-      session.agentSpan.setAttribute('gen_ai.response.model', usage.model);
-    }
   }
 
   // Duration and tool count
@@ -85,18 +73,27 @@ export function handleAgentEnd(
   );
 
   // Error status
-  if (event.error || session.hasError) {
+  if (event.error || !event.success || session.hasError) {
     const errorType =
-      event.error instanceof Error
-        ? event.error.constructor.name
+      event.error
+        ? 'AgentError'
         : session.hasError
           ? 'ToolError'
           : 'Error';
+    const errorMsg = event.error || 'Agent invocation failed';
     session.agentSpan.setAttribute('error.type', errorType);
     session.agentSpan.setStatus({
       code: SpanStatusCode.ERROR,
-      message: event.error ? String(event.error) : 'Tool error occurred',
+      message: errorMsg,
     });
+
+    // Record structured exception per OTEL semantic conventions.
+    // recordException() expects Error | string — construct a real Error instance.
+    const errDetails = extractErrorDetails(event.error ?? errorMsg);
+    const exception = new Error(errDetails.message);
+    exception.name = errDetails.type;
+    if (errDetails.stacktrace) exception.stack = errDetails.stacktrace;
+    session.agentSpan.recordException(exception);
   } else {
     session.agentSpan.setStatus({ code: SpanStatusCode.OK });
   }
@@ -110,24 +107,16 @@ export function handleAgentEnd(
       agentName,
       workspace,
       providerName: config.providerName || 'unknown',
-      requestModel: event.context.model || usage?.model || '',
-      responseModel: usage?.model || '',
-      hasError: !!(event.error || session.hasError),
+      // Model names not available in current SDK event payload
+      requestModel: '',
+      responseModel: '',
+      hasError: !!(event.error || !event.success || session.hasError),
       errorType: event.error
-        ? event.error instanceof Error
-          ? event.error.constructor.name
-          : 'Error'
+        ? 'AgentError'
         : undefined,
     };
 
     recordOperationDuration(durationS, metricAttrs);
-
-    if (usage?.inputTokens !== undefined) {
-      recordTokenUsage(usage.inputTokens, 'input', metricAttrs);
-    }
-    if (usage?.outputTokens !== undefined) {
-      recordTokenUsage(usage.outputTokens, 'output', metricAttrs);
-    }
   }
 
   // Log trace link
@@ -138,5 +127,5 @@ export function handleAgentEnd(
   }
 
   // Cleanup
-  spanStore.delete(event.context.sessionKey);
+  spanStore.delete(sessionKey);
 }

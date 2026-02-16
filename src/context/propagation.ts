@@ -28,16 +28,17 @@ export function injectTraceContext(
   parentSpan: Span,
   urlPatterns: string[],
 ): void {
-  const args = event.tool?.args;
-  if (!args) return;
+  const params = event.params;
+  if (!params) return;
 
+  // Extract command string from params (exec tool uses command/cmd keys)
   const command =
-    typeof args === 'string'
-      ? args
-      : (args as Record<string, unknown>).command ??
-        (args as Record<string, unknown>).cmd ??
-        '';
-  if (typeof command !== 'string') return;
+    typeof params.command === 'string'
+      ? params.command
+      : typeof params.cmd === 'string'
+        ? params.cmd
+        : '';
+  if (!command) return;
 
   // Only inject into HTTP client commands
   if (!isHttpCommand(command)) return;
@@ -59,13 +60,11 @@ export function injectTraceContext(
     headerFlags += ` -H "tracestate: ${carrier.tracestate}"`;
   }
 
-  // Mutate the event's tool args to include trace headers
-  if (typeof args === 'string') {
-    event.tool!.args = args + headerFlags;
-  } else if (typeof (args as Record<string, unknown>).command === 'string') {
-    (args as Record<string, string>).command += headerFlags;
-  } else if (typeof (args as Record<string, unknown>).cmd === 'string') {
-    (args as Record<string, string>).cmd += headerFlags;
+  // Mutate the event's params to include trace headers
+  if (typeof params.command === 'string') {
+    params.command = params.command + headerFlags;
+  } else if (typeof params.cmd === 'string') {
+    params.cmd = params.cmd + headerFlags;
   }
 }
 

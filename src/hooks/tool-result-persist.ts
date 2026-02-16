@@ -13,79 +13,68 @@ import { SpanStatusCode } from '@opentelemetry/api';
 import { spanStore } from '../context/span-store.js';
 import {
   prepareForCapture,
-  extractErrorDetails,
   safeJsonStringify,
 } from '../util.js';
 import type { LogfirePluginConfig } from '../config.js';
 
+/** OpenClaw tool_result_persist event payload. */
 export interface ToolResultPersistEvent {
-  context: {
-    sessionKey: string;
-  };
-  result?: unknown;
-  error?: unknown;
+  toolName?: string;
+  toolCallId?: string;
+  message?: unknown;
+  isSynthetic?: boolean;
+}
+
+/** OpenClaw tool result persist hook context (2nd argument). */
+export interface ToolResultPersistContext {
+  agentId?: string;
+  sessionKey?: string;
+  toolName?: string;
+  toolCallId?: string;
 }
 
 export function handleToolResultPersist(
   event: ToolResultPersistEvent,
+  ctx: ToolResultPersistContext,
   config: LogfirePluginConfig,
 ): void {
-  const entry = spanStore.popTool(event.context.sessionKey);
+  const sessionKey =
+    typeof ctx.sessionKey === 'string' && ctx.sessionKey.length > 0
+      ? ctx.sessionKey
+      : undefined;
+  if (!sessionKey) return;
+  const entry = spanStore.popTool(sessionKey);
   if (!entry) return;
 
-  const durationMs = Date.now() - entry.startTime;
-  entry.span.setAttribute('openclaw.tool.duration_ms', durationMs);
+  try {
+    const durationMs = Date.now() - entry.startTime;
+    entry.span.setAttribute('openclaw.tool.duration_ms', durationMs);
 
-  // Result size
-  if (event.result !== undefined) {
-    const resultStr =
-      typeof event.result === 'string'
-        ? event.result
-        : safeJsonStringify(event.result);
-    entry.span.setAttribute('openclaw.tool.output_size', resultStr.length);
+    // Result size (from the persisted message)
+    if (event.message !== undefined) {
+      const resultStr =
+        typeof event.message === 'string'
+          ? event.message
+          : safeJsonStringify(event.message);
+      entry.span.setAttribute('openclaw.tool.output_size', resultStr.length);
 
-    // Opt-in: capture tool output
-    if (config.captureToolOutput) {
-      entry.span.setAttribute(
-        'gen_ai.tool.call.result',
-        prepareForCapture(
-          event.result,
-          config.toolOutputMaxLength,
-          config.redactSecrets,
-        ),
-      );
+      // Opt-in: capture tool output
+      if (config.captureToolOutput) {
+        entry.span.setAttribute(
+          'gen_ai.tool.call.result',
+          prepareForCapture(
+            event.message,
+            config.toolOutputMaxLength,
+            config.redactSecrets,
+          ),
+        );
+      }
     }
-  }
 
-  // Error handling with stack traces
-  if (event.error) {
-    const session = spanStore.get(event.context.sessionKey);
-    if (session) session.hasError = true;
-
-    const details = extractErrorDetails(event.error);
-
-    entry.span.setAttribute('error.type', details.type);
-    entry.span.setStatus({
-      code: SpanStatusCode.ERROR,
-      message: details.message,
-    });
-
-    // Record exception per OTEL semantic conventions
-    if (event.error instanceof Error) {
-      entry.span.recordException(event.error);
-    } else {
-      // Manual exception event for non-Error objects
-      entry.span.addEvent('exception', {
-        'exception.type': details.type,
-        'exception.message': details.message,
-        ...(config.captureStackTraces && details.stacktrace
-          ? { 'exception.stacktrace': details.stacktrace }
-          : {}),
-      });
-    }
-  } else {
+    // Tool-level errors are not available in this hook's event payload.
+    // Errors are captured at the agent level in agent_end via event.error/event.success.
     entry.span.setStatus({ code: SpanStatusCode.OK });
+  } finally {
+    entry.span.end();
   }
-
-  entry.span.end();
 }
