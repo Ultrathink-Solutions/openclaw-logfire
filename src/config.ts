@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Plugin configuration with sensible defaults.
  *

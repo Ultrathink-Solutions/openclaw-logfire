@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * W3C trace context propagation for distributed tracing.
  *
