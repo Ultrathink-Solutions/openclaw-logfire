@@ -19,9 +19,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **OpenTelemetry SDK upgraded from 1.x to 2.x** — stable SDK 1.30→2.5, experimental 0.57→0.212. Only breaking change: `Resource` class constructor replaced with `resourceFromAttributes()`. Dependency ranges updated; consumers using OTEL 2.x will no longer see peer dep warnings.
 - Token usage metrics include actual model names instead of empty strings
 - Operation duration metrics include model name and provider from LLM hooks
 - Provider name on agent span is updated from `llm_input` when config `providerName` is unset
+- Zero-value token counts (e.g. 0 output tokens) are now correctly accumulated — fixed truthy checks that silently dropped zeros
+- LLM span closure wrapped in `try/finally` to prevent span leaks on exceptions
+- Prompt content capture now applies `prepareForCapture()` redaction and truncation (consistent with tool args)
+- `isRecord` runtime guard added to `llm_input`/`llm_output` hook registrations (consistent with all other hooks)
+- Orphaned span cleanup uses LIFO order (children before parent) for valid trace trees
+
+### Testing
+
+- Hook handler unit tests added — 113 tests across 11 files, coverage boosted from 28% to 67%
 
 ### Known Limitations
 
