@@ -34,7 +34,7 @@ export function handleBeforeToolCall(
   const session = spanStore.get(event.context.sessionKey);
   if (!session) return;
 
-  const tracer = trace.getTracer('@ultrathink/openclaw-logfire', '0.1.0');
+  const tracer = trace.getTracer('@ultrathink-solutions/openclaw-logfire', '0.1.0');
   const toolName = event.tool?.name || 'unknown';
   const callId = generateCallId();
 
