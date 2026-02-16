@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Hook: before_tool_call
  *

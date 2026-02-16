@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Hook: before_agent_start
  *
