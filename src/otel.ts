@@ -14,7 +14,7 @@ import {
   BatchSpanProcessor,
   SimpleSpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
-import { Resource } from '@opentelemetry/resources';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 import {
   ATTR_SERVICE_NAME,
   SEMRESATTRS_DEPLOYMENT_ENVIRONMENT,
@@ -54,7 +54,7 @@ export function initializeOtel(config: LogfirePluginConfig): NodeSDK {
     resourceAttrs['logfire.project_url'] = config.projectUrl;
   }
 
-  const resource = new Resource(resourceAttrs);
+  const resource = resourceFromAttributes(resourceAttrs);
 
   // Span processor
   const spanProcessor =
