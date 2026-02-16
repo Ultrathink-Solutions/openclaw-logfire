@@ -1,7 +1,7 @@
 ---
 name: openclaw-logfire
 description: Pydantic Logfire observability — OTEL GenAI traces, tool call spans, token metrics, distributed tracing
-version: 0.1.1
+version: 0.1.2
 homepage: https://github.com/Ultrathink-Solutions/openclaw-logfire
 metadata:
   openclaw:

@@ -5,6 +5,12 @@ All notable changes to `@ultrathink-solutions/openclaw-logfire` will be document
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-02-16
+
+### Fixed
+
+- Read plugin config from `api.pluginConfig` instead of `api.config` — OpenClaw passes the full application config as `api.config` and the plugin-specific config as `api.pluginConfig`. Reading from `api.config` caused all settings (environment, providerName, etc.) to silently fall through to defaults.
+
 ## [0.1.1] - 2026-02-16
 
 ### Fixed
@@ -40,5 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Batch and simple span processor modes
 - Zero-config quickstart (just set `LOGFIRE_TOKEN`)
 
+[0.1.2]: https://github.com/Ultrathink-Solutions/openclaw-logfire/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/Ultrathink-Solutions/openclaw-logfire/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Ultrathink-Solutions/openclaw-logfire/releases/tag/v0.1.0

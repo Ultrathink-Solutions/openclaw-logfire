@@ -8,7 +8,7 @@
  * Minimal setup:
  *   1. Set LOGFIRE_TOKEN env var
  *   2. Add to openclaw.json:
- *      { "plugins": { "entries": { "logfire": { "enabled": true, "config": {} } } } }
+ *      { "plugins": { "entries": { "openclaw-logfire": { "enabled": true, "config": {} } } } }
  *   3. Restart OpenClaw
  */
 
@@ -27,7 +27,10 @@ import type { NodeSDK } from '@opentelemetry/sdk-node';
  * to a specific OpenClaw version.
  */
 interface PluginApi {
+  /** Full application config (openclaw.json). */
   config?: Record<string, unknown>;
+  /** Plugin-specific config from plugins.entries.<id>.config. */
+  pluginConfig?: Record<string, unknown>;
   logger: {
     info(msg: string): void;
     debug(msg: string): void;
@@ -45,13 +48,15 @@ interface PluginApi {
 let sdk: NodeSDK | null = null;
 
 export default function register(api: PluginApi): void {
-  const config = resolveConfig(api.config);
+  // pluginConfig is the plugin-specific config from plugins.entries.<id>.config.
+  // api.config is the full openclaw.json — DO NOT use it for plugin settings.
+  const config = resolveConfig(api.pluginConfig);
 
   // Validate token
   if (!config.token) {
     api.logger.error(
       'Logfire plugin disabled: LOGFIRE_TOKEN not set. ' +
-        'Export it as an env var or set plugins.entries.logfire.config.token',
+        'Export it as an env var or set plugins.entries.openclaw-logfire.config.token',
     );
     return;
   }
