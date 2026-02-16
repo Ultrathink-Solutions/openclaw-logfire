@@ -18,10 +18,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
           cache: npm
 
       - run: npm ci
+
+      # Set registry without token-based .npmrc so npm uses OIDC for auth
+      - run: npm config set registry https://registry.npmjs.org/
 
       - name: Verify checks pass
         run: |
