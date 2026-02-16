@@ -20,6 +20,11 @@ import { handleToolResultPersist } from './hooks/tool-result-persist.js';
 import { handleAgentEnd } from './hooks/agent-end.js';
 import { handleMessageReceived } from './hooks/message-received.js';
 import type { NodeSDK } from '@opentelemetry/sdk-node';
+import type { BeforeAgentStartEvent, AgentContext } from './hooks/before-agent-start.js';
+import type { BeforeToolCallEvent, ToolContext } from './hooks/before-tool-call.js';
+import type { ToolResultPersistEvent, ToolResultPersistContext } from './hooks/tool-result-persist.js';
+import type { AgentEndEvent } from './hooks/agent-end.js';
+import type { MessageReceivedEvent, MessageContext } from './hooks/message-received.js';
 
 /**
  * Minimal OpenClaw plugin API contract.
@@ -37,12 +42,17 @@ interface PluginApi {
     warn(msg: string): void;
     error(msg: string): void;
   };
-  on(event: string, handler: (event: never) => void): void;
+  on(event: string, handler: (event: unknown, ctx: unknown) => void): void;
   registerService(service: {
     id: string;
     start: () => void;
     stop: () => void | Promise<void>;
   }): void;
+}
+
+/** Runtime guard for untrusted hook payloads from the OpenClaw SDK. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }
 
 let sdk: NodeSDK | null = null;
@@ -69,46 +79,73 @@ export default function register(api: PluginApi): void {
     return;
   }
 
-  // Register lifecycle hooks
-  api.on('before_agent_start', ((event: never) => {
+  // Register lifecycle hooks — OpenClaw passes (event, ctx) to each handler.
+  // Types are asserted at the boundary since the SDK provides untyped payloads.
+  api.on('before_agent_start', (event, ctx) => {
+    if (!isRecord(event) || !isRecord(ctx)) return;
     try {
-      handleBeforeAgentStart(event, config);
+      handleBeforeAgentStart(
+        event as unknown as BeforeAgentStartEvent,
+        ctx as unknown as AgentContext,
+        config,
+      );
     } catch (err) {
       api.logger.warn(`Logfire before_agent_start error: ${err}`);
     }
-  }) as (event: never) => void);
+  });
 
-  api.on('before_tool_call', ((event: never) => {
+  api.on('before_tool_call', (event, ctx) => {
+    if (!isRecord(event) || !isRecord(ctx)) return;
     try {
-      handleBeforeToolCall(event, config);
+      handleBeforeToolCall(
+        event as unknown as BeforeToolCallEvent,
+        ctx as unknown as ToolContext,
+        config,
+      );
     } catch (err) {
       api.logger.warn(`Logfire before_tool_call error: ${err}`);
     }
-  }) as (event: never) => void);
+  });
 
-  api.on('tool_result_persist', ((event: never) => {
+  api.on('tool_result_persist', (event, ctx) => {
+    if (!isRecord(event) || !isRecord(ctx)) return;
     try {
-      handleToolResultPersist(event, config);
+      handleToolResultPersist(
+        event as unknown as ToolResultPersistEvent,
+        ctx as unknown as ToolResultPersistContext,
+        config,
+      );
     } catch (err) {
       api.logger.warn(`Logfire tool_result_persist error: ${err}`);
     }
-  }) as (event: never) => void);
+  });
 
-  api.on('agent_end', ((event: never) => {
+  api.on('agent_end', (event, ctx) => {
+    if (!isRecord(event) || !isRecord(ctx)) return;
     try {
-      handleAgentEnd(event, config, api.logger);
+      handleAgentEnd(
+        event as unknown as AgentEndEvent,
+        ctx as unknown as AgentContext,
+        config,
+        api.logger,
+      );
     } catch (err) {
       api.logger.warn(`Logfire agent_end error: ${err}`);
     }
-  }) as (event: never) => void);
+  });
 
-  api.on('message_received', ((event: never) => {
+  api.on('message_received', (event, ctx) => {
+    if (!isRecord(event) || !isRecord(ctx)) return;
     try {
-      handleMessageReceived(event, config);
+      handleMessageReceived(
+        event as unknown as MessageReceivedEvent,
+        ctx as unknown as MessageContext,
+        config,
+      );
     } catch (err) {
       api.logger.warn(`Logfire message_received error: ${err}`);
     }
-  }) as (event: never) => void);
+  });
 
   // Register service for clean shutdown
   api.registerService({
