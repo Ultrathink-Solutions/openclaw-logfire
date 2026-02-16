@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * OTEL GenAI semantic convention metrics.
  *

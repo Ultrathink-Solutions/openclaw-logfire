@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Build clickable Logfire trace URLs.
  *

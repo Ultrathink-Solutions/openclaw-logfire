@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Hook: tool_result_persist (synchronous)
  *

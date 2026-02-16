@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Shared utilities: safe JSON serialization, truncation, secret redaction.
  */

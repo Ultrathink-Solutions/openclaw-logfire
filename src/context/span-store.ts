@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * In-memory store mapping OpenClaw session keys to active OTEL spans.
  *

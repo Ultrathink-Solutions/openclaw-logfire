@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * OpenTelemetry SDK initialization targeting Logfire's OTLP endpoint.
  *
@@ -21,7 +22,7 @@ import {
 import type { LogfirePluginConfig } from './config.js';
 
 const LOGFIRE_ENDPOINTS: Record<string, string> = {
-  us: 'https://logfire-api.pydantic.dev',
+  us: 'https://logfire-us.pydantic.dev',
   eu: 'https://logfire-eu.pydantic.dev',
 };
 
@@ -35,7 +36,7 @@ export function initializeOtel(config: LogfirePluginConfig): NodeSDK {
   }
 
   const baseEndpoint = LOGFIRE_ENDPOINTS[config.region] ?? LOGFIRE_ENDPOINTS.us;
-  const authHeaders = { Authorization: token };
+  const authHeaders = { Authorization: `Bearer ${token}` };
 
   // Trace exporter
   const traceExporter = new OTLPTraceExporter({

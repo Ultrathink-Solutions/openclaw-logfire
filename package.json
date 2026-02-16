@@ -21,17 +21,37 @@
     "agent"
   ],
   "type": "module",
-  "main": "src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "openclaw.plugin.json",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "homepage": "https://github.com/Ultrathink-Solutions/openclaw-logfire#readme",
+  "bugs": {
+    "url": "https://github.com/Ultrathink-Solutions/openclaw-logfire/issues"
+  },
   "openclaw": {
     "extensions": [
-      "./src/index.ts"
+      "./dist/index.js"
     ]
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",

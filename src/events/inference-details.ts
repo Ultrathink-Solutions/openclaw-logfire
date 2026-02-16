@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Opt-in GenAI event: gen_ai.client.inference.operation.details
  *
