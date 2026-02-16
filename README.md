@@ -45,28 +45,35 @@ Restart OpenClaw. That's it — traces appear in your Logfire dashboard.
 Every agent invocation produces a trace tree:
 
 ```
-invoke_agent chief-of-staff          (root span)
+invoke_agent my-agent                (root span, cumulative tokens)
+  |-- gen_ai.chat anthropic          (LLM call: model, input/output tokens)
   |-- execute_tool Read              (file read)
   |-- execute_tool exec              (shell command)
+  |-- gen_ai.chat anthropic          (LLM call: model, input/output tokens)
   |-- execute_tool Write             (file write)
-  |-- execute_tool web_search        (web search)
+  |-- gen_ai.chat anthropic          (LLM call: model, input/output tokens)
 ```
 
 ### Attributes (OTEL GenAI Semantic Conventions)
 
-| Attribute | Example | Description |
-|-----------|---------|-------------|
-| `gen_ai.operation.name` | `invoke_agent` | Operation type |
-| `gen_ai.agent.name` | `chief-of-staff` | Agent identifier |
-| `gen_ai.conversation.id` | `session_abc123` | Session key |
-| `gen_ai.tool.name` | `Read` | Tool being called |
-| `gen_ai.tool.call.arguments` | `{"path": "/..."}` | Tool input (opt-in) |
-| `gen_ai.usage.input_tokens` | `1024` | Prompt tokens |
-| `gen_ai.usage.output_tokens` | `512` | Completion tokens |
-| `error.type` | `ToolExecutionError` | Error classification |
-| `exception.stacktrace` | `Error: ...` | Full stack trace |
-| `openclaw.workspace` | `chief-of-staff` | Workspace name |
-| `openclaw.channel` | `slack` | Message source |
+| Attribute | Span | Example | Description |
+|-----------|------|---------|-------------|
+| `gen_ai.operation.name` | All | `invoke_agent` | Operation type |
+| `gen_ai.agent.name` | Agent | `my-agent` | Agent identifier |
+| `gen_ai.conversation.id` | Agent | `session_abc123` | Session key |
+| `gen_ai.request.model` | Agent, LLM | `claude-sonnet-4-5-20250929` | Model name |
+| `gen_ai.response.model` | Agent, LLM | `claude-sonnet-4-5-20250929` | Response model |
+| `gen_ai.provider.name` | Agent, LLM | `anthropic` | LLM provider |
+| `gen_ai.usage.input_tokens` | Agent, LLM | `1024` | Input tokens (cumulative on agent) |
+| `gen_ai.usage.output_tokens` | Agent, LLM | `512` | Output tokens (cumulative on agent) |
+| `openclaw.usage.cache_read_tokens` | Agent, LLM | `8192` | Cached prompt tokens read |
+| `openclaw.usage.cache_write_tokens` | Agent, LLM | `4096` | Cached prompt tokens written |
+| `gen_ai.tool.name` | Tool | `Read` | Tool being called |
+| `gen_ai.tool.call.id` | Tool | `call_abc123` | Unique tool call identifier |
+| `gen_ai.tool.call.arguments` | Tool | `{"path": "/..."}` | Tool input (opt-in) |
+| `error.type` | Agent | `AgentError` | Error classification |
+| `openclaw.workspace` | Agent | `my-agent` | Workspace name |
+| `openclaw.channel` | Agent | `slack` | Message source |
 
 ### Metrics
 
@@ -77,13 +84,7 @@ invoke_agent chief-of-staff          (root span)
 
 ### Error Tracing
 
-Tool failures include full OTEL exception events:
-
-- `exception.type` — Error class name
-- `exception.message` — Error description
-- `exception.stacktrace` — Full stack trace
-
-Errors propagate up the span tree so the root `invoke_agent` span is marked as errored.
+Agent-level errors are captured on the root `invoke_agent` span with `error.type` and error status. Errors from tool failures propagate up so the agent span is marked as errored.
 
 ## Configuration
 
@@ -170,11 +171,11 @@ Connect OpenClaw traces to your backend services. When enabled, the plugin injec
 This produces connected traces across services:
 
 ```
-OpenClaw: invoke_agent chief-of-staff
-  |-- execute_tool exec (curl POST /v1/api)
-       |-- [Backend] FastAPI: POST /v1/api
+OpenClaw: invoke_agent my-agent
+  |-- execute_tool exec (curl POST /api/data)
+       |-- [Your Backend] POST /api/data
             |-- database query
-            |-- LLM call
+            |-- downstream service call
 ```
 
 Your backend must support W3C trace context extraction (most frameworks do: FastAPI with Logfire, Express with OTEL, etc.).
@@ -188,12 +189,14 @@ openclaw-logfire/src/
   otel.ts               OTEL SDK initialization (Logfire OTLP)
   hooks/
     before-agent-start  invoke_agent span creation
+    llm-input           gen_ai.chat span creation (per LLM call)
+    llm-output          LLM span close + token metrics + accumulation
     before-tool-call    execute_tool span + context propagation
-    tool-result-persist Tool span close + errors + stack traces
-    agent-end           Span close + metrics + trace link
+    tool-result-persist Tool span close + result capture
+    agent-end           Span close + cumulative tokens + metrics
     message-received    Channel attribution + inbound context
   context/
-    span-store          Session -> active spans (LIFO tool stack)
+    span-store          Session -> active spans (LIFO tool stack, LLM spans)
     propagation         W3C traceparent inject/extract
   metrics/
     genai-metrics       Token usage + operation duration histograms
@@ -206,12 +209,14 @@ openclaw-logfire/src/
 | Hook | Purpose |
 |------|---------|
 | `before_agent_start` | Create root `invoke_agent` span |
+| `llm_input` | Create `gen_ai.chat` child span per LLM call |
+| `llm_output` | Close LLM span, record token usage metrics |
 | `before_tool_call` | Create `execute_tool` child span |
-| `tool_result_persist` | Close tool span, record errors |
-| `agent_end` | Close spans, emit metrics |
+| `tool_result_persist` | Close tool span, record result size |
+| `agent_end` | Close spans, set cumulative tokens, emit metrics |
 | `message_received` | Enrich with channel info |
 
-Requires OpenClaw >= 2026.2.1 (`before_tool_call` was wired in that version).
+Requires OpenClaw >= 2026.2.1 (`before_tool_call` and `llm_input`/`llm_output` hooks).
 
 ## Development
 

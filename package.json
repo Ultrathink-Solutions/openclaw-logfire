@@ -1,6 +1,6 @@
 {
   "name": "@ultrathink-solutions/openclaw-logfire",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Pydantic Logfire observability plugin for OpenClaw — OTEL GenAI semantic conventions, distributed tracing, token metrics, trace links",
   "license": "MIT",
   "author": "Ultrathink Solutions <engineering@ultrathink.dev>",

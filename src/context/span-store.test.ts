@@ -30,6 +30,8 @@ describe('SpanStore', () => {
       agentSpan: mockSpan(),
       agentCtx: mockContext(),
       toolStack: [],
+      llmSpans: new Map(),
+      tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       toolSequence: 0,
       hasError: false,
       startTime: Date.now(),
@@ -49,6 +51,8 @@ describe('SpanStore', () => {
       agentSpan: mockSpan(),
       agentCtx: mockContext(),
       toolStack: [],
+      llmSpans: new Map(),
+      tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       toolSequence: 0,
       hasError: false,
       startTime: Date.now(),
@@ -86,6 +90,8 @@ describe('SpanStore', () => {
       agentSpan: mockSpan(),
       agentCtx: mockContext(),
       toolStack: [],
+      llmSpans: new Map(),
+      tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       toolSequence: 0,
       hasError: false,
       startTime: Date.now(),
@@ -108,6 +114,8 @@ describe('SpanStore', () => {
       agentSpan: mockSpan(),
       agentCtx: mockContext(),
       toolStack: [],
+      llmSpans: new Map(),
+      tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       toolSequence: 0,
       hasError: false,
       startTime: Date.now(),
@@ -115,5 +123,74 @@ describe('SpanStore', () => {
 
     spanStore.delete('test-session');
     expect(spanStore.get('test-session')).toBeUndefined();
+  });
+
+  it('stores and retrieves LLM spans by runId', () => {
+    spanStore.set('test-session', {
+      agentSpan: mockSpan(),
+      agentCtx: mockContext(),
+      toolStack: [],
+      llmSpans: new Map(),
+      tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      toolSequence: 0,
+      hasError: false,
+      startTime: Date.now(),
+    });
+
+    const entry = {
+      span: mockSpan(),
+      ctx: mockContext(),
+      runId: 'run-1',
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-5-20250929',
+      startTime: Date.now(),
+    };
+
+    spanStore.setLlmSpan('test-session', 'run-1', entry);
+    expect(spanStore.getLlmSpan('test-session', 'run-1')).toBe(entry);
+    expect(spanStore.getLlmSpan('test-session', 'run-2')).toBeUndefined();
+  });
+
+  it('deletes LLM spans and returns them', () => {
+    spanStore.set('test-session', {
+      agentSpan: mockSpan(),
+      agentCtx: mockContext(),
+      toolStack: [],
+      llmSpans: new Map(),
+      tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      toolSequence: 0,
+      hasError: false,
+      startTime: Date.now(),
+    });
+
+    const entry = {
+      span: mockSpan(),
+      ctx: mockContext(),
+      runId: 'run-1',
+      provider: 'openai',
+      model: 'gpt-4o',
+      startTime: Date.now(),
+    };
+
+    spanStore.setLlmSpan('test-session', 'run-1', entry);
+    const deleted = spanStore.deleteLlmSpan('test-session', 'run-1');
+    expect(deleted).toBe(entry);
+    expect(spanStore.getLlmSpan('test-session', 'run-1')).toBeUndefined();
+  });
+
+  it('returns undefined when deleting nonexistent LLM span', () => {
+    spanStore.set('test-session', {
+      agentSpan: mockSpan(),
+      agentCtx: mockContext(),
+      toolStack: [],
+      llmSpans: new Map(),
+      tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      toolSequence: 0,
+      hasError: false,
+      startTime: Date.now(),
+    });
+
+    expect(spanStore.deleteLlmSpan('test-session', 'nope')).toBeUndefined();
+    expect(spanStore.deleteLlmSpan('nonexistent', 'nope')).toBeUndefined();
   });
 });
