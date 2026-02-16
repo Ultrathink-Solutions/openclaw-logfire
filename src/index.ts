@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 /**
- * @ultrathink/openclaw-logfire
+ * @ultrathink-solutions/openclaw-logfire
  *
  * Pydantic Logfire observability plugin for OpenClaw.
  * OTEL GenAI semantic convention compliant.

@@ -29,7 +29,7 @@ export function handleBeforeAgentStart(
   event: BeforeAgentStartEvent,
   config: LogfirePluginConfig,
 ): void {
-  const tracer = trace.getTracer('@ultrathink/openclaw-logfire', '0.1.0');
+  const tracer = trace.getTracer('@ultrathink-solutions/openclaw-logfire', '0.1.0');
   const agentName = event.context.agentId || 'agent';
   const workspace = extractWorkspaceName(event.context.workspaceDir);
 
