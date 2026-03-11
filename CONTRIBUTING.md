@@ -77,18 +77,18 @@ gh pr create
 
 ### Commit Messages
 
-Follow [Conventional Commits](https://www.conventionalcommits.org/) with a Linear ticket suffix:
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
 
-Format: `<type>: <summary> (ULT-###)`
+Format: `<type>: <summary>`
 
 | Prefix | Use for | Example |
 |--------|---------|---------|
-| `feat:` | New functionality | `feat: add webhook context extraction (ULT-123)` |
-| `fix:` | Bug fixes | `fix: prevent span leak on timeout (ULT-124)` |
-| `chore:` | Build, CI, config changes | `chore: update OTEL SDK to 1.31 (ULT-125)` |
-| `refactor:` | Code restructuring without behavior change | `refactor: simplify span store lookup (ULT-126)` |
-| `test:` | Test additions or fixes | `test: add redaction edge cases (ULT-127)` |
-| `docs:` | Documentation only | `docs: update config reference (ULT-128)` |
+| `feat:` | New functionality | `feat: add webhook context extraction` |
+| `fix:` | Bug fixes | `fix: prevent span leak on timeout` |
+| `chore:` | Build, CI, config changes | `chore: update OTEL SDK to 1.31` |
+| `refactor:` | Code restructuring without behavior change | `refactor: simplify span store lookup` |
+| `test:` | Test additions or fixes | `test: add redaction edge cases` |
+| `docs:` | Documentation only | `docs: update config reference` |
 
 ### CI Checks
 

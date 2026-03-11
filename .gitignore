@@ -4,3 +4,7 @@ dist/
 .env
 .env.*
 coverage/
+
+# AI tool configs (may contain internal context)
+.claude/
+CLAUDE.md
