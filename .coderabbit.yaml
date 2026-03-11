@@ -246,7 +246,7 @@ reviews:
 # CHAT SETTINGS
 # ==============================================================================
 chat:
-  auto_reply: true
+  auto_reply: false
 
 # ==============================================================================
 # KNOWLEDGE BASE
@@ -254,16 +254,11 @@ chat:
 knowledge_base:
   # Learn from feedback across all repos in org
   learnings:
-    scope: global
+    scope: auto
 
   # Issue integration scope
   issues:
     scope: auto
-
-  # Linear integration - team key for ULT-### detection
-  linear:
-    team_keys:
-      - "ULT"
 
   # Auto-detect coding guidelines from CLAUDE.md, etc.
   code_guidelines:
