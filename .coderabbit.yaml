@@ -252,14 +252,14 @@ chat:
 # KNOWLEDGE BASE
 # ==============================================================================
 knowledge_base:
-  # Learn from feedback across all repos in org
+  # Scope learnings and issues to this repo only. Prevents a public PR from
+  # poisoning a shared knowledge store used across other repositories.
   learnings:
-    scope: auto
+    scope: local
 
-  # Issue integration scope
   issues:
-    scope: auto
+    scope: local
 
-  # Auto-detect coding guidelines from CLAUDE.md, etc.
+  # Auto-detect coding guidelines from repo-local docs
   code_guidelines:
     enabled: true
